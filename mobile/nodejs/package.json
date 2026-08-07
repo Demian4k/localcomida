@@ -1,0 +1,5 @@
+{
+  "name": "localcomida-mobile-host",
+  "private": true,
+  "main": "index.cjs"
+}

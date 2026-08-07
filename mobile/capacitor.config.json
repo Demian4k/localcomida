@@ -1,0 +1,22 @@
+{
+  "appId": "com.localcomida.pos",
+  "appName": "LocalComida",
+  "webDir": "../frontend/dist",
+  "server": {
+    "androidScheme": "https",
+    "cleartext": true
+  },
+  "android": {
+    "allowMixedContent": true
+  },
+  "ios": {
+    "scheme": "LocalComida",
+    "contentInset": "automatic"
+  },
+  "plugins": {
+    "Nodejs": {
+      "nodeDir": "nodejs",
+      "startMode": "manual"
+    }
+  }
+}

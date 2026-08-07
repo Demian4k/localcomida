@@ -1,0 +1,82 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --color-surface: #f7f7f9;
+  --color-border: #eaeaea;
+  --color-ink: #0a0a0a;
+  --color-muted: #6b6b73;
+  --color-danger: #dc2626;
+  --color-success: #16a34a;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  overflow: hidden;
+}
+
+/* Hide scrollbars, keep scroll (touch-first) */
+.hide-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Solo el borde/anillo; el contenido del ticket no se atenúa (legibilidad en cocina). */
+@keyframes ticket-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 3px rgba(10, 10, 10, 0.22);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(10, 10, 10, 0.08);
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.35s ease-out both;
+}
+
+.animate-soft-pulse {
+  animation: ticket-pulse 1.4s ease-in-out infinite;
+}
+
+.field-input {
+  width: 100%;
+  min-height: 3rem;
+  border-radius: 1rem;
+  border: 1px solid var(--color-border);
+  padding: 0 1rem;
+  background: var(--color-surface);
+  outline: none;
+}
+
+.field-input:focus {
+  border-color: var(--color-ink);
+}

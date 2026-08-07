@@ -1,0 +1,124 @@
+# Compila la versión de PRUEBA (20 días) para Mac e iOS en cada push a main.
+name: Apple trial builds
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: apple-trial-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mac-trial:
+    name: Mac .dmg (prueba)
+    runs-on: macos-14
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Instalar dependencias
+        run: |
+          npm install
+          npm install --prefix frontend
+          npm install --prefix backend
+
+      - name: Compilar LocalComida Prueba (Mac)
+        run: npm run dist:mac:trial
+        env:
+          VITE_TRIAL: "1"
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+
+      - name: Subir .dmg / .zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: LocalComida-prueba-mac
+          path: |
+            dist-instalador/LocalComida-prueba-*.dmg
+            dist-instalador/LocalComida-prueba-*.zip
+          if-no-files-found: error
+          retention-days: 30
+
+  ios-trial:
+    name: iOS (prueba)
+    runs-on: macos-14
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Seleccionar Xcode
+        run: |
+          sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+          xcodebuild -version
+          xcode-select -p
+
+      - name: CocoaPods
+        run: |
+          gem install cocoapods --no-document || sudo gem install cocoapods --no-document
+          pod --version
+
+      - name: Instalar dependencias
+        run: |
+          npm install
+          npm install --prefix frontend
+          npm install --prefix backend
+          npm install --prefix mobile
+
+      - name: Importar certificado iOS (opcional)
+        if: ${{ secrets.IOS_CERTIFICATE_BASE64 != '' && secrets.IOS_PROVISION_PROFILE_BASE64 != '' }}
+        env:
+          IOS_CERTIFICATE_BASE64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
+          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+          IOS_PROVISION_PROFILE_BASE64: ${{ secrets.IOS_PROVISION_PROFILE_BASE64 }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          CERT_PATH=$RUNNER_TEMP/build_certificate.p12
+          PP_PATH=$RUNNER_TEMP/build_pp.mobileprovision
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+          echo -n "$IOS_CERTIFICATE_BASE64" | base64 --decode -o "$CERT_PATH"
+          echo -n "$IOS_PROVISION_PROFILE_BASE64" | base64 --decode -o "$PP_PATH"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERT_PATH" -P "$IOS_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          PP_UUID=$(security cms -D -i "$PP_PATH" | plutil -extract UUID raw -)
+          cp "$PP_PATH" ~/Library/MobileDevice/Provisioning\ Profiles/"$PP_UUID".mobileprovision
+
+      - name: Compilar LocalComida Prueba (iOS)
+        run: npm run ios:trial
+        env:
+          VITE_TRIAL: "1"
+          IOS_CERTIFICATE_BASE64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
+          IOS_PROVISION_PROFILE_BASE64: ${{ secrets.IOS_PROVISION_PROFILE_BASE64 }}
+          IOS_EXPORT_METHOD: ${{ secrets.IOS_EXPORT_METHOD }}
+
+      - name: Subir artefactos iOS
+        uses: actions/upload-artifact@v4
+        with:
+          name: LocalComida-prueba-ios
+          path: |
+            dist-ios/LocalComida-prueba-simulator.app.zip
+            dist-ios/LocalComida-prueba.ipa
+            dist-ios/LEEME-iOS.txt
+          if-no-files-found: error
+          retention-days: 30

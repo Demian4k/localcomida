@@ -1,0 +1,86 @@
+{
+  "name": "localcomida",
+  "version": "1.1.2",
+  "private": true,
+  "description": "LocalComida POS — nodo local",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "dev:api": "npm run dev --prefix backend",
+    "dev:ui": "npm run dev --prefix frontend",
+    "build:ui": "npm run build --prefix frontend",
+    "start": "npm run start --prefix backend",
+    "seed": "npm run seed --prefix backend",
+    "prepare-client": "node scripts/prepare-client.mjs",
+    "prepare-client:mac": "node scripts/prepare-client.mjs --platform=mac",
+    "electron": "electron .",
+    "dist:win": "npm run prepare-client && electron-builder --win portable",
+    "dist:mac": "node scripts/dist-mac.mjs",
+    "dist:mac:trial": "node scripts/dist-mac-trial.mjs",
+    "ios:trial": "npm run ios:trial --prefix mobile",
+    "apk": "npm run apk --prefix mobile",
+    "apk:trial": "npm run apk:trial --prefix mobile",
+    "apk:release": "npm run apk:release --prefix mobile"
+  },
+  "build": {
+    "appId": "com.localcomida.pos",
+    "productName": "LocalComida",
+    "directories": {
+      "output": "dist-instalador"
+    },
+    "files": [
+      "electron/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "dist-cliente",
+        "to": "app",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        "portable"
+      ],
+      "artifactName": "LocalComida-${version}-portable.${ext}"
+    },
+    "mac": {
+      "category": "public.app-category.business",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "artifactName": "LocalComida-${version}-mac-${arch}.${ext}",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "darkModeSupport": true
+    },
+    "dmg": {
+      "title": "LocalComida ${version}",
+      "contents": [
+        {
+          "x": 140,
+          "y": 180,
+          "type": "file"
+        },
+        {
+          "x": 400,
+          "y": 180,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ]
+    }
+  },
+  "devDependencies": {
+    "electron": "^35.7.5",
+    "electron-builder": "^26.15.3"
+  }
+}

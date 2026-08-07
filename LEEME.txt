@@ -1,0 +1,57 @@
+LocalComida — PC o tablet principal + cajas sincronizadas
+========================================================
+
+CÓMO FUNCIONA EL INVENTARIO
+---------------------------
+Hay UN equipo PRINCIPAL que guarda la base de datos.
+Todas las demás tablets (caja o preparación) se conectan a él por Wi‑Fi.
+Al vender en cualquier caja, el stock baja en el mismo sitio → todas lo ven igual.
+
+El principal puede ser:
+  · El PC Windows (.exe Electron), o
+  · Un Mac (.dmg Electron), o
+  · Una tablet Android eligiendo «Esta es la principal»
+
+NO uses dos principales a la vez (serían dos inventarios distintos).
+
+INSTALACIÓN
+-----------
+1) Elige UN principal
+   - Windows: abre el .exe portable, o
+   - Mac: instala el .dmg (docs\MAC-BUILD.md), o
+   - Tablet: instala el APK → «Esta es la principal» → Caja → crea admin
+
+2) Otras tablets
+   - Mismo APK → «Me conecto a otra» → Caja o Preparación
+   - Buscar Wi‑Fi / QR / código (menú → Conectar tablets en el principal)
+
+3) Misma Wi‑Fi. Sin Internet. Deja el principal encendido.
+
+GENERAR APP MAC
+---------------
+Solo en un Mac:  npm run dist:mac
+Detalle: docs\MAC-BUILD.md
+
+VERSIÓN DE PRUEBA (20 DÍAS)
+---------------------------
+Android:  npm run apk:trial  → dist-apk\LocalComida-prueba.apk
+Mac/iOS:  push a GitHub (rama main) → Actions descarga .dmg e iOS
+Detalle CI: docs\GITHUB-APPLE-CI.md
+Se bloquea sola a los 20 días desde el primer uso.
+La versión completa: npm run apk / npm run dist:win (sin límite)
+
+ACTUALIZAR APK
+--------------
+releases\LocalComida-android.apk
+o http://IP-DEL-PRINCIPAL:8000/api/v1/install/android.apk
+
+SEGURIDAD
+---------
+JWT, rate limit de login, CORS acotado, pairing por código.
+HTTP en LAN (riesgo aceptado v1).
+
+PRUEBAS
+-------
+docs\LAN-TEST-MATRIX.md
+docs\ADR-native-shell.md
+docs\MAC-BUILD.md

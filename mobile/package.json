@@ -1,0 +1,28 @@
+{
+  "name": "localcomida-android",
+  "version": "1.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:ui": "npm run build --prefix ../frontend",
+    "bundle:host": "npm run bundle:host --prefix ../backend",
+    "cap:sync": "npm run build:ui && npm run bundle:host && node scripts/copy-nodejs-into-dist.mjs && npx cap sync android",
+    "cap:open": "npx cap open android",
+    "apk": "npm run cap:sync && cd android && .\\gradlew.bat assembleFullDebug && node ../scripts/copy-apk.mjs debug",
+    "apk:trial": "node scripts/build-trial-apk.mjs",
+    "apk:release": "npm run cap:sync && node scripts/ensure-keystore-props.mjs && cd android && .\\gradlew.bat assembleFullRelease && node ../scripts/copy-apk.mjs release",
+    "ios:trial": "node scripts/build-trial-ios.mjs"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.4.2",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/core": "^8.4.2",
+    "@capacitor/ios": "^8.4.2",
+    "@capacitor/preferences": "^8.0.1",
+    "@capacitor/status-bar": "^8.0.3",
+    "@capawesome/capacitor-nodejs": "^0.1.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.4.2"
+  }
+}
