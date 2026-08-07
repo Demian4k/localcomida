@@ -1,6 +1,6 @@
 /**
  * Genera build iOS de prueba (20 días) con VITE_TRIAL=1.
- * Debe ejecutarse en macOS (Xcode + CocoaPods). En CI sube .ipa / .app.
+ * Capacitor 8 + Capawesome Nodejs usan Swift Package Manager (no CocoaPods).
  */
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -45,26 +45,22 @@ if (!fs.existsSync(path.join(mobileRoot, "node_modules", "@capacitor", "ios"))) 
   run("npm", ["install", "@capacitor/ios"], mobileRoot);
 }
 if (!fs.existsSync(iosDir)) {
-  run("npx", ["cap", "add", "ios", "--packagemanager", "CocoaPods"], mobileRoot);
+  run("npx", ["cap", "add", "ios"], mobileRoot);
 }
 
 run("npx", ["cap", "sync", "ios"], mobileRoot);
 
-const workspace = path.join(iosApp, "App.xcworkspace");
 const project = path.join(iosApp, "App.xcodeproj");
-const useWorkspace = fs.existsSync(workspace);
-
-run("pod", ["install"], iosApp);
-
 const derived = path.join(outDir, "DerivedData");
 const archivePath = path.join(outDir, "LocalComida-prueba.xcarchive");
 
-// Build para simulador (siempre, sin certificados Apple)
+run("xcodebuild", ["-project", project, "-scheme", "App", "-resolvePackageDependencies"], iosApp);
+
 run(
   "xcodebuild",
   [
-    useWorkspace ? "-workspace" : "-project",
-    useWorkspace ? workspace : project,
+    "-project",
+    project,
     "-scheme",
     "App",
     "-configuration",
@@ -73,6 +69,8 @@ run(
     "iphonesimulator",
     "-derivedDataPath",
     derived,
+    "-destination",
+    "generic/platform=iOS Simulator",
     "CODE_SIGNING_ALLOWED=NO",
     "build",
   ],
@@ -106,7 +104,6 @@ if (simApp) {
   console.log(`Simulador: ${zipOut}`);
 }
 
-// Intento de archive para dispositivo (requiere firma si hay secretos / perfil)
 const hasSigning =
   Boolean(process.env.IOS_CERTIFICATE_BASE64) && Boolean(process.env.IOS_PROVISION_PROFILE_BASE64);
 
@@ -115,8 +112,8 @@ if (hasSigning) {
   run(
     "xcodebuild",
     [
-      useWorkspace ? "-workspace" : "-project",
-      useWorkspace ? workspace : project,
+      "-project",
+      project,
       "-scheme",
       "App",
       "-configuration",
