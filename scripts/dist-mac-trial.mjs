@@ -21,9 +21,14 @@ function run(cmd, args, env = process.env) {
   const r = spawnSync(cmd, args, {
     cwd: root,
     stdio: "inherit",
-    shell: true,
+    // En Unix shell:true parte mal los args con espacios (p. ej. productName).
+    shell: process.platform === "win32",
     env,
   });
+  if (r.error) {
+    console.error(r.error);
+    process.exit(1);
+  }
   if (r.status !== 0) process.exit(r.status ?? 1);
 }
 

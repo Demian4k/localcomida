@@ -20,25 +20,52 @@ jobs:
     timeout-minutes: 90
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: "22"
-          cache: npm
+          package-manager-cache: false
 
       - name: Instalar dependencias
         run: |
+          set -euo pipefail
           npm install
           npm install --prefix frontend
           npm install --prefix backend
+          node -v
+          npm -v
+          test -d frontend/node_modules/vite
+          test -d frontend/node_modules/typescript
 
-      - name: Compilar LocalComida Prueba (Mac)
-        run: npm run dist:mac:trial
+      - name: Build UI (prueba 20 días)
+        working-directory: frontend
         env:
           VITE_TRIAL: "1"
+        run: |
+          set -euo pipefail
+          npm run build
+          test -f dist/index.html
+
+      - name: Preparar cliente Mac
+        env:
+          VITE_TRIAL: "1"
+        run: |
+          set -euo pipefail
+          npm run prepare-client:mac
+
+      - name: Empaquetar .dmg
+        env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
+        run: |
+          set -euo pipefail
+          ARCH="$(node -p "process.arch === 'arm64' ? 'arm64' : 'x64'")"
+          npx electron-builder --mac "--${ARCH}" \
+            -c.appId=com.localcomida.pos.trial \
+            -c.productName="LocalComida Prueba" \
+            -c.mac.artifactName="LocalComida-prueba-\${version}-mac-\${arch}.\${ext}"
+          ls -la dist-instalador
 
       - name: Subir .dmg / .zip
         uses: actions/upload-artifact@v4
@@ -54,7 +81,6 @@ jobs:
     name: iOS (prueba)
     runs-on: macos-14
     timeout-minutes: 90
-    # secrets no se puede usar en `if:`; se mapean a env a nivel de job
     env:
       IOS_CERTIFICATE_BASE64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
       IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
@@ -63,35 +89,62 @@ jobs:
       IOS_EXPORT_METHOD: ${{ secrets.IOS_EXPORT_METHOD }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: "22"
-          cache: npm
+          package-manager-cache: false
 
       - name: Seleccionar Xcode
         run: |
+          set -euo pipefail
           sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
           xcodebuild -version
-          xcode-select -p
 
       - name: CocoaPods
         run: |
-          gem install cocoapods --no-document || sudo gem install cocoapods --no-document
+          set -euo pipefail
+          gem install cocoapods --user-install --no-document
+          echo "$(ruby -rrubygems -e 'puts Gem.user_dir')/bin" >> "$GITHUB_PATH"
+          export PATH="$(ruby -rrubygems -e 'puts Gem.user_dir')/bin:$PATH"
           pod --version
 
       - name: Instalar dependencias
         run: |
+          set -euo pipefail
           npm install
           npm install --prefix frontend
           npm install --prefix backend
           npm install --prefix mobile
+          test -d mobile/node_modules/@capacitor/ios
+          test -d mobile/node_modules/@capacitor/cli
+
+      - name: Build UI (prueba 20 días)
+        working-directory: frontend
+        env:
+          VITE_TRIAL: "1"
+        run: |
+          set -euo pipefail
+          npm run build
+          test -f dist/index.html
+
+      - name: Bundle host + Capacitor iOS
+        run: |
+          set -euo pipefail
+          npm run bundle:host --prefix backend
+          node mobile/scripts/copy-nodejs-into-dist.mjs
+          if [ ! -d mobile/ios ]; then
+            npx --prefix mobile cap add ios
+          fi
+          npx --prefix mobile cap sync ios
+          test -d mobile/ios/App
 
       - name: Importar certificado iOS (opcional)
         if: ${{ env.IOS_CERTIFICATE_BASE64 != '' && env.IOS_PROVISION_PROFILE_BASE64 != '' }}
         run: |
+          set -euo pipefail
           CERT_PATH=$RUNNER_TEMP/build_certificate.p12
           PP_PATH=$RUNNER_TEMP/build_pp.mobileprovision
           KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
@@ -102,14 +155,66 @@ jobs:
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security import "$CERT_PATH" -P "$IOS_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
           security list-keychain -d user -s "$KEYCHAIN_PATH"
-          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
           PP_UUID=$(security cms -D -i "$PP_PATH" | plutil -extract UUID raw -)
-          cp "$PP_PATH" ~/Library/MobileDevice/Provisioning\ Profiles/"$PP_UUID".mobileprovision
+          cp "$PP_PATH" "$HOME/Library/MobileDevice/Provisioning Profiles/${PP_UUID}.mobileprovision"
 
-      - name: Compilar LocalComida Prueba (iOS)
-        run: npm run ios:trial
-        env:
-          VITE_TRIAL: "1"
+      - name: Pod install
+        working-directory: mobile/ios/App
+        run: |
+          set -euo pipefail
+          pod install --verbose
+
+      - name: Compilar iOS (simulador)
+        run: |
+          set -euo pipefail
+          mkdir -p dist-ios
+          WORKSPACE="mobile/ios/App/App.xcworkspace"
+          PROJECT="mobile/ios/App/App.xcodeproj"
+          DERIVED="dist-ios/DerivedData"
+          if [ -d "$WORKSPACE" ]; then
+            xcodebuild -workspace "$WORKSPACE" -scheme App -configuration Release \
+              -sdk iphonesimulator -derivedDataPath "$DERIVED" \
+              CODE_SIGNING_ALLOWED=NO build
+          else
+            xcodebuild -project "$PROJECT" -scheme App -configuration Release \
+              -sdk iphonesimulator -derivedDataPath "$DERIVED" \
+              CODE_SIGNING_ALLOWED=NO build
+          fi
+          APP="$(find "$DERIVED/Build/Products" -name '*.app' -type d | head -n 1)"
+          test -n "$APP"
+          ditto -c -k --sequesterRsrc --keepParent "$APP" dist-ios/LocalComida-prueba-simulator.app.zip
+          cat > dist-ios/LEEME-iOS.txt <<'EOF'
+          LocalComida Prueba (iOS)
+          =======================
+          Incluye LocalComida-prueba-simulator.app.zip (Simulador Xcode).
+          Para .ipa en iPhone/iPad reales hace falta Apple Developer + secrets
+          (docs/GITHUB-APPLE-CI.md). Se bloquea a los 20 días.
+          EOF
+          ls -la dist-ios
+
+      - name: Exportar IPA firmado (si hay certificados)
+        if: ${{ env.IOS_CERTIFICATE_BASE64 != '' && env.IOS_PROVISION_PROFILE_BASE64 != '' }}
+        run: |
+          set -euo pipefail
+          WORKSPACE="mobile/ios/App/App.xcworkspace"
+          ARCHIVE="dist-ios/LocalComida-prueba.xcarchive"
+          EXPORT_DIR="dist-ios/ipa"
+          PLIST="dist-ios/ExportOptions.plist"
+          METHOD="${IOS_EXPORT_METHOD:-ad-hoc}"
+          xcodebuild -workspace "$WORKSPACE" -scheme App -configuration Release \
+            -destination 'generic/platform=iOS' -archivePath "$ARCHIVE" archive
+          cat > "$PLIST" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>${METHOD}</string>
+            <key>compileBitcode</key><false/>
+            <key>signingStyle</key><string>manual</string>
+          </dict></plist>
+          EOF
+          xcodebuild -exportArchive -archivePath "$ARCHIVE" -exportPath "$EXPORT_DIR" -exportOptionsPlist "$PLIST"
+          cp "$EXPORT_DIR"/*.ipa dist-ios/LocalComida-prueba.ipa
 
       - name: Subir artefactos iOS
         uses: actions/upload-artifact@v4

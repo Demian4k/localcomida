@@ -36,7 +36,16 @@ const targetPlatform = resolveTargetPlatform();
 
 function run(cmd, argsList, cwd, env = process.env) {
   console.log(`> ${cmd} ${argsList.join(" ")}`);
-  const r = spawnSync(cmd, argsList, { cwd, stdio: "inherit", shell: true, env });
+  const r = spawnSync(cmd, argsList, {
+    cwd,
+    stdio: "inherit",
+    shell: process.platform === "win32",
+    env,
+  });
+  if (r.error) {
+    console.error(r.error);
+    process.exit(1);
+  }
   if (r.status !== 0) {
     process.exit(r.status ?? 1);
   }
