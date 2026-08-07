@@ -68,7 +68,7 @@ jobs:
           ls -la dist-instalador
 
       - name: Subir .dmg / .zip
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: LocalComida-prueba-mac
           path: |
@@ -139,9 +139,11 @@ jobs:
           test -f capacitor.config.json
           test -d node_modules/@capacitor/ios
           if [ ! -d ios ]; then
-            npx cap add ios
+            # Capacitor 8 usa SPM por defecto (sin Podfile); CocoaPods es más compatible con plugins.
+            npx cap add ios --packagemanager CocoaPods
           fi
           npx cap sync ios
+          test -f ios/App/Podfile
           test -d ios/App
 
       - name: Importar certificado iOS (opcional)
@@ -166,7 +168,8 @@ jobs:
         working-directory: mobile/ios/App
         run: |
           set -euo pipefail
-          pod install --verbose
+          test -f Podfile
+          pod install
 
       - name: Compilar iOS (simulador)
         run: |
@@ -175,7 +178,7 @@ jobs:
           WORKSPACE="mobile/ios/App/App.xcworkspace"
           PROJECT="mobile/ios/App/App.xcodeproj"
           DERIVED="dist-ios/DerivedData"
-          if [ -d "$WORKSPACE" ]; then
+          if [ -f mobile/ios/App/Podfile ] && [ -d "$WORKSPACE" ]; then
             xcodebuild -workspace "$WORKSPACE" -scheme App -configuration Release \
               -sdk iphonesimulator -derivedDataPath "$DERIVED" \
               CODE_SIGNING_ALLOWED=NO build
@@ -220,7 +223,7 @@ jobs:
           cp "$EXPORT_DIR"/*.ipa dist-ios/LocalComida-prueba.ipa
 
       - name: Subir artefactos iOS
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: LocalComida-prueba-ios
           path: |

@@ -45,7 +45,7 @@ if (!fs.existsSync(path.join(mobileRoot, "node_modules", "@capacitor", "ios"))) 
   run("npm", ["install", "@capacitor/ios"], mobileRoot);
 }
 if (!fs.existsSync(iosDir)) {
-  run("npx", ["cap", "add", "ios"], mobileRoot);
+  run("npx", ["cap", "add", "ios", "--packagemanager", "CocoaPods"], mobileRoot);
 }
 
 run("npx", ["cap", "sync", "ios"], mobileRoot);
