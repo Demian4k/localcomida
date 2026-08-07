@@ -61,7 +61,7 @@ function run(cmd, args, env = process.env) {
 run("npm", ["run", "prepare-client:mac"]);
 
 // Sin certificado Apple: build local usable (Gatekeeper pide "Abrir" la 1ª vez)
-run("npx", ["electron-builder", "--mac", `--${arch}`], {
+run("npx", ["electron-builder", "--mac", `--${arch}`, "--publish", "never"], {
   ...process.env,
   CSC_IDENTITY_AUTO_DISCOVERY: "false",
 });

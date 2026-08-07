@@ -42,6 +42,8 @@ run(
     "electron-builder",
     "--mac",
     `--${arch}`,
+    "--publish",
+    "never",
     "-c.appId=com.localcomida.pos.trial",
     "-c.productName=LocalComida Prueba",
     "-c.mac.artifactName=LocalComida-prueba-${version}-mac-${arch}.${ext}",

@@ -61,7 +61,7 @@ jobs:
         run: |
           set -euo pipefail
           ARCH="$(node -p "process.arch === 'arm64' ? 'arm64' : 'x64'")"
-          npx electron-builder --mac "--${ARCH}" \
+          npx electron-builder --mac "--${ARCH}" --publish never \
             -c.appId=com.localcomida.pos.trial \
             -c.productName="LocalComida Prueba" \
             -c.mac.artifactName="LocalComida-prueba-\${version}-mac-\${arch}.\${ext}"
@@ -135,11 +135,14 @@ jobs:
           set -euo pipefail
           npm run bundle:host --prefix backend
           node mobile/scripts/copy-nodejs-into-dist.mjs
-          if [ ! -d mobile/ios ]; then
-            npx --prefix mobile cap add ios
+          cd mobile
+          test -f capacitor.config.json
+          test -d node_modules/@capacitor/ios
+          if [ ! -d ios ]; then
+            npx cap add ios
           fi
-          npx --prefix mobile cap sync ios
-          test -d mobile/ios/App
+          npx cap sync ios
+          test -d ios/App
 
       - name: Importar certificado iOS (opcional)
         if: ${{ env.IOS_CERTIFICATE_BASE64 != '' && env.IOS_PROVISION_PROFILE_BASE64 != '' }}

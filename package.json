@@ -3,6 +3,7 @@
   "version": "1.1.2",
   "private": true,
   "description": "LocalComida POS — nodo local",
+  "author": "LocalComida",
   "main": "electron/main.cjs",
   "scripts": {
     "dev:api": "npm run dev --prefix backend",

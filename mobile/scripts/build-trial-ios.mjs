@@ -19,7 +19,16 @@ if (process.platform !== "darwin") {
 
 function run(cmd, args, cwd, env = process.env) {
   console.log(`> ${cmd} ${args.join(" ")}`);
-  const r = spawnSync(cmd, args, { cwd, stdio: "inherit", shell: true, env });
+  const r = spawnSync(cmd, args, {
+    cwd,
+    stdio: "inherit",
+    shell: process.platform === "win32",
+    env,
+  });
+  if (r.error) {
+    console.error(r.error);
+    process.exit(1);
+  }
   if (r.status !== 0) process.exit(r.status ?? 1);
 }
 
@@ -32,6 +41,9 @@ run("npm", ["run", "bundle:host"], path.join(repoRoot, "backend"));
 run("node", ["scripts/copy-nodejs-into-dist.mjs"], mobileRoot);
 
 const iosDir = path.join(mobileRoot, "ios");
+if (!fs.existsSync(path.join(mobileRoot, "node_modules", "@capacitor", "ios"))) {
+  run("npm", ["install", "@capacitor/ios"], mobileRoot);
+}
 if (!fs.existsSync(iosDir)) {
   run("npx", ["cap", "add", "ios"], mobileRoot);
 }
