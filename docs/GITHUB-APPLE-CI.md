@@ -30,6 +30,8 @@ Es la versión de **prueba** (se bloquea a los 20 días).
 
 CI genera `LocalComida-prueba-simulator.app.zip` para probar en el **Simulador** de Xcode en un Mac.
 
+El proyecto iOS usa **Swift Package Manager** (Capacitor 8 + plugin Node.js de Capawesome; no CocoaPods).
+
 ### Con certificados (IPA para dispositivo real)
 
 En el repo: **Settings → Secrets and variables → Actions**, agregá:

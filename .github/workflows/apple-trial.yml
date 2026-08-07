@@ -68,7 +68,7 @@ jobs:
           ls -la dist-instalador
 
       - name: Subir .dmg / .zip
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: LocalComida-prueba-mac
           path: |
@@ -103,14 +103,6 @@ jobs:
           sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
           xcodebuild -version
 
-      - name: CocoaPods
-        run: |
-          set -euo pipefail
-          gem install cocoapods --user-install --no-document
-          echo "$(ruby -rrubygems -e 'puts Gem.user_dir')/bin" >> "$GITHUB_PATH"
-          export PATH="$(ruby -rrubygems -e 'puts Gem.user_dir')/bin:$PATH"
-          pod --version
-
       - name: Instalar dependencias
         run: |
           set -euo pipefail
@@ -120,6 +112,7 @@ jobs:
           npm install --prefix mobile
           test -d mobile/node_modules/@capacitor/ios
           test -d mobile/node_modules/@capacitor/cli
+          test -f mobile/node_modules/@capawesome/capacitor-nodejs/Package.swift
 
       - name: Build UI (prueba 20 días)
         working-directory: frontend
@@ -130,21 +123,20 @@ jobs:
           npm run build
           test -f dist/index.html
 
-      - name: Bundle host + Capacitor iOS
+      - name: Bundle host + Capacitor iOS (SPM)
         run: |
           set -euo pipefail
           npm run bundle:host --prefix backend
           node mobile/scripts/copy-nodejs-into-dist.mjs
           cd mobile
           test -f capacitor.config.json
-          test -d node_modules/@capacitor/ios
+          # Capacitor 8 + @capawesome/capacitor-nodejs usan Swift Package Manager (no CocoaPods).
           if [ ! -d ios ]; then
-            # Capacitor 8 usa SPM por defecto (sin Podfile); CocoaPods es más compatible con plugins.
-            npx cap add ios --packagemanager CocoaPods
+            npx cap add ios
           fi
           npx cap sync ios
-          test -f ios/App/Podfile
-          test -d ios/App
+          test -d ios/App/App.xcodeproj
+          ls -la ios/App
 
       - name: Importar certificado iOS (opcional)
         if: ${{ env.IOS_CERTIFICATE_BASE64 != '' && env.IOS_PROVISION_PROFILE_BASE64 != '' }}
@@ -164,29 +156,17 @@ jobs:
           PP_UUID=$(security cms -D -i "$PP_PATH" | plutil -extract UUID raw -)
           cp "$PP_PATH" "$HOME/Library/MobileDevice/Provisioning Profiles/${PP_UUID}.mobileprovision"
 
-      - name: Pod install
-        working-directory: mobile/ios/App
-        run: |
-          set -euo pipefail
-          test -f Podfile
-          pod install
-
       - name: Compilar iOS (simulador)
         run: |
           set -euo pipefail
           mkdir -p dist-ios
-          WORKSPACE="mobile/ios/App/App.xcworkspace"
           PROJECT="mobile/ios/App/App.xcodeproj"
           DERIVED="dist-ios/DerivedData"
-          if [ -f mobile/ios/App/Podfile ] && [ -d "$WORKSPACE" ]; then
-            xcodebuild -workspace "$WORKSPACE" -scheme App -configuration Release \
-              -sdk iphonesimulator -derivedDataPath "$DERIVED" \
-              CODE_SIGNING_ALLOWED=NO build
-          else
-            xcodebuild -project "$PROJECT" -scheme App -configuration Release \
-              -sdk iphonesimulator -derivedDataPath "$DERIVED" \
-              CODE_SIGNING_ALLOWED=NO build
-          fi
+          xcodebuild -project "$PROJECT" -scheme App -resolvePackageDependencies
+          xcodebuild -project "$PROJECT" -scheme App -configuration Release \
+            -sdk iphonesimulator -derivedDataPath "$DERIVED" \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO build
           APP="$(find "$DERIVED/Build/Products" -name '*.app' -type d | head -n 1)"
           test -n "$APP"
           ditto -c -k --sequesterRsrc --keepParent "$APP" dist-ios/LocalComida-prueba-simulator.app.zip
@@ -203,12 +183,12 @@ jobs:
         if: ${{ env.IOS_CERTIFICATE_BASE64 != '' && env.IOS_PROVISION_PROFILE_BASE64 != '' }}
         run: |
           set -euo pipefail
-          WORKSPACE="mobile/ios/App/App.xcworkspace"
+          PROJECT="mobile/ios/App/App.xcodeproj"
           ARCHIVE="dist-ios/LocalComida-prueba.xcarchive"
           EXPORT_DIR="dist-ios/ipa"
           PLIST="dist-ios/ExportOptions.plist"
           METHOD="${IOS_EXPORT_METHOD:-ad-hoc}"
-          xcodebuild -workspace "$WORKSPACE" -scheme App -configuration Release \
+          xcodebuild -project "$PROJECT" -scheme App -configuration Release \
             -destination 'generic/platform=iOS' -archivePath "$ARCHIVE" archive
           cat > "$PLIST" <<EOF
           <?xml version="1.0" encoding="UTF-8"?>
@@ -223,7 +203,7 @@ jobs:
           cp "$EXPORT_DIR"/*.ipa dist-ios/LocalComida-prueba.ipa
 
       - name: Subir artefactos iOS
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: LocalComida-prueba-ios
           path: |
