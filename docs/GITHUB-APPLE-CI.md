@@ -53,6 +53,8 @@ base64 -i TuPerfil.mobileprovision | pbcopy
 
 Hace falta cuenta **Apple Developer** (~99 USD/año) para perfiles que instalen en dispositivos físicos.
 
+**Nota:** Capacitor 8 requiere **Xcode 26+**. El workflow usa runners `macos-26` de GitHub Actions.
+
 ## Comandos locales (en un Mac)
 
 ```bash

@@ -16,7 +16,7 @@ concurrency:
 jobs:
   mac-trial:
     name: Mac .dmg (prueba)
-    runs-on: macos-14
+    runs-on: macos-26
     timeout-minutes: 90
     steps:
       - name: Checkout
@@ -79,7 +79,8 @@ jobs:
 
   ios-trial:
     name: iOS (prueba)
-    runs-on: macos-14
+    # Capacitor 8 requiere Xcode 26+ (no compila en Xcode 15/16).
+    runs-on: macos-26
     timeout-minutes: 90
     env:
       IOS_CERTIFICATE_BASE64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
@@ -97,12 +98,19 @@ jobs:
           node-version: "22"
           package-manager-cache: false
 
-      - name: Seleccionar Xcode
+      - name: Seleccionar Xcode 26
         run: |
           set -euo pipefail
-          sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+          if [ -d /Applications/Xcode_26.6.app ]; then
+            sudo xcode-select -s /Applications/Xcode_26.6.app/Contents/Developer
+          elif [ -d /Applications/Xcode_26.5.app ]; then
+            sudo xcode-select -s /Applications/Xcode_26.5.app/Contents/Developer
+          else
+            sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+          fi
           xcodebuild -version
-
+          # Capacitor 8 necesita Xcode 26+
+          xcodebuild -version | head -n1 | grep -E 'Xcode 26|Xcode 27'
       - name: Instalar dependencias
         run: |
           set -euo pipefail

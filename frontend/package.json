@@ -10,8 +10,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@capacitor/core": "^8.4.2",
-    "@capacitor/preferences": "^7.0.1",
+    "@capacitor/core": "^8.5.0",
+    "@capacitor/preferences": "^8.0.1",
     "@capawesome/capacitor-nodejs": "^0.1.0",
     "html5-qrcode": "^2.3.8",
     "lucide-react": "^1.24.0",
